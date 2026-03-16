@@ -161,6 +161,7 @@ export function ArchivedTable({
       selectable
       rowSelection={rowSelection}
       onRowSelectionChange={onRowSelectionChange}
+      getRowId={(row) => row.id}
       emptyMessage="Archive is empty."
     />
   );

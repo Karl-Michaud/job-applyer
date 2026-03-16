@@ -19,6 +19,8 @@ interface DataTableProps<TData> {
   selectable?: boolean;
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+  /** Function to derive a stable unique ID from a row (used as selection key) */
+  getRowId?: (row: TData) => string;
   /** Show when data is empty */
   emptyMessage?: string;
   /** Extra className for the wrapping div */
@@ -31,6 +33,7 @@ export function DataTable<TData>({
   selectable = false,
   rowSelection = {},
   onRowSelectionChange,
+  getRowId,
   emptyMessage = "No results.",
   className = "",
 }: DataTableProps<TData>) {
@@ -39,6 +42,7 @@ export function DataTable<TData>({
   const table = useReactTable({
     data,
     columns,
+    getRowId,
     state: {
       sorting,
       ...(selectable ? { rowSelection } : {}),
