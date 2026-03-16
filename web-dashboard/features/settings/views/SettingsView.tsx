@@ -108,6 +108,20 @@ export function SettingsView() {
       </Section>
 
       <Section
+        title="Must-Have Keywords"
+        description="Job titles must contain at least one of these words (case-insensitive). Leave empty to allow all titles."
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label>Must-Have Keywords</Label>
+          <TagInput
+            tags={prefs.must_have_keywords}
+            onChange={(v) => updatePref("must_have_keywords", v)}
+            placeholder="e.g. software, data, machine learning..."
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Blacklist"
         description="Jobs matching these keywords will be hidden from the feed."
       >

@@ -7,6 +7,7 @@ import { Preferences, Company, GreenhouseTarget, LeverTarget } from "@/features/
 const DEFAULT_PREFS: Preferences = {
   target_roles: [],
   target_locations: [],
+  must_have_keywords: [],
   blacklisted_keywords: [],
   blacklisted_companies: [],
   daily_goal: 5,
