@@ -6,6 +6,7 @@ export interface Preferences {
   blacklisted_keywords: string[];
   blacklisted_companies: string[];
   daily_goal: number;
+  max_age_weeks: number;
 }
 
 export interface Company {

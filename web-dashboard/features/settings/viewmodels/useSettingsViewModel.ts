@@ -12,6 +12,7 @@ const DEFAULT_PREFS: Preferences = {
   blacklisted_keywords: [],
   blacklisted_companies: [],
   daily_goal: 5,
+  max_age_weeks: 4,
 };
 
 interface UseSettingsViewModel {

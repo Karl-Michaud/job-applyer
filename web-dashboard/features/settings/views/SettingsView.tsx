@@ -178,6 +178,23 @@ export function SettingsView() {
       </Section>
 
       <Section
+        title="Max Job Age"
+        description="Jobs posted more than this many weeks ago will be skipped by the scraper. Set to 0 to disable."
+      >
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={0}
+            max={52}
+            value={prefs.max_age_weeks}
+            onChange={(e) => updatePref("max_age_weeks", Number(e.target.value))}
+            className="w-20 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+          />
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">weeks</span>
+        </div>
+      </Section>
+
+      <Section
         title="Greenhouse Targets"
         description="Companies to scrape via the Greenhouse API. Deduplication is handled automatically by URL."
       >

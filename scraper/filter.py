@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta, timezone
 
 from models.job import ScrapedJob
 
@@ -63,11 +64,17 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
     must_have_keywords: list[str] = prefs.get("must_have_keywords") or []
     blacklisted_keywords: list[str] = prefs.get("blacklisted_keywords") or []
     pref_blacklisted_companies: list[str] = [c.lower() for c in (prefs.get("blacklisted_companies") or [])]
+    max_age_weeks: int = int(prefs.get("max_age_weeks") or 0)
 
     all_blacklisted = blacklisted_companies | set(pref_blacklisted_companies)
+    cutoff = (
+        datetime.now(tz=timezone.utc) - timedelta(weeks=max_age_weeks)
+        if max_age_weeks > 0 else None
+    )
 
     before = len(jobs)
     filtered = []
+    dropped = {"blacklisted_company": 0, "too_old": 0, "job_type": 0, "must_have": 0, "blacklisted_kw": 0, "target_roles": 0, "location": 0}
 
     for job in jobs:
         title_lower = job.title.lower()
@@ -75,42 +82,45 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
         company_lower = job.company_name.lower()
         location_lower = (job.location or "").lower()
 
-        # Blacklisted company
         if company_lower in all_blacklisted:
-            continue
+            dropped["blacklisted_company"] += 1; continue
 
-        # Job type keywords: whole-word match against title OR scraper already classified it as internship
+        if cutoff and job.posted_at:
+            try:
+                posted = datetime.fromisoformat(job.posted_at)
+                if posted < cutoff:
+                    dropped["too_old"] += 1; continue
+            except ValueError:
+                pass
+
         if job_type_keywords and job.job_type != "internship" and not any(
             re.search(r"\b" + re.escape(kw.lower()) + r"\b", title_lower)
             for kw in job_type_keywords
         ):
-            continue
+            dropped["job_type"] += 1; continue
 
-        # Must-have keywords: substring match, title must contain at least one
         if must_have_keywords and not any(kw.lower() in title_lower for kw in must_have_keywords):
-            continue
+            dropped["must_have"] += 1; continue
 
-        # Blacklisted keywords in title or description
         if any(kw.lower() in title_lower or kw.lower() in desc_lower for kw in blacklisted_keywords):
-            continue
+            dropped["blacklisted_kw"] += 1; continue
 
-        # Target roles: title must match at least one role (stem-based, case-insensitive)
         if target_roles and not any(_title_matches_role(title_lower, role) for role in target_roles):
-            continue
+            dropped["target_roles"] += 1; continue
 
-        # Target locations: at least one must match, or job is remote
         if target_locations:
             is_remote = "remote" in location_lower or (job.location_type or "").lower() == "remote"
             matches_location = any(loc.lower() in location_lower for loc in target_locations)
             if not is_remote and not matches_location:
-                continue
+                dropped["location"] += 1; continue
 
         filtered.append(job)
 
-    removed = before - len(filtered)
-    if removed:
-        print(f"[filter] Removed {removed} jobs ({before} → {len(filtered)})")
+    active = {k: v for k, v in dropped.items() if v}
+    if active:
+        breakdown = ", ".join(f"{k}: -{v}" for k, v in active.items())
+        print(f"[filter] {before} → {len(filtered)} jobs  ({breakdown})")
     else:
-        print(f"[filter] All {before} jobs passed filters")
+        print(f"[filter] All {before} jobs passed")
 
     return filtered
