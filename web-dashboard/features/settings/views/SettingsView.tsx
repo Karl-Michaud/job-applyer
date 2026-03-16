@@ -32,19 +32,23 @@ function Label({ children }: { children: React.ReactNode }) {
 
 export function SettingsView() {
   const {
-    prefs, companies, greenhouseTargets, leverTargets, loading, error,
+    prefs, companies, greenhouseTargets, leverTargets, ashbyTargets, loading, error,
     updatePref, toggleCompanyBlacklist,
     addGreenhouseTarget, removeGreenhouseTarget, toggleGreenhouseTarget,
     addLeverTarget, removeLeverTarget, toggleLeverTarget,
+    addAshbyTarget, removeAshbyTarget, toggleAshbyTarget,
   } = useSettingsViewModel();
 
   const [ghSlug, setGhSlug] = useState("");
   const [ghName, setGhName] = useState("");
   const [lvSlug, setLvSlug] = useState("");
   const [lvName, setLvName] = useState("");
+  const [abSlug, setAbSlug] = useState("");
+  const [abName, setAbName] = useState("");
 
   const ghNames = new Set(greenhouseTargets.map((t) => t.display_name.toLowerCase()));
   const lvNames = new Set(leverTargets.map((t) => t.display_name.toLowerCase()));
+  const abNames = new Set(ashbyTargets.map((t) => t.display_name.toLowerCase()));
 
   async function handleAddGreenhouse() {
     if (!ghSlug.trim() || !ghName.trim()) return;
@@ -58,6 +62,13 @@ export function SettingsView() {
     await addLeverTarget(lvSlug, lvName);
     setLvSlug("");
     setLvName("");
+  }
+
+  async function handleAddAshby() {
+    if (!abSlug.trim() || !abName.trim()) return;
+    await addAshbyTarget(abSlug, abName);
+    setAbSlug("");
+    setAbName("");
   }
 
   if (loading) {
@@ -288,6 +299,74 @@ export function SettingsView() {
         </div>
       </Section>
 
+      <Section
+        title="Ashby Targets"
+        description="Companies to scrape via the Ashby API. Find the slug in the careers page URL: jobs.ashbyhq.com/{slug}"
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={abName}
+              onChange={(e) => setAbName(e.target.value)}
+              placeholder="Display name (e.g. Notion)"
+              className="flex-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <input
+              type="text"
+              value={abSlug}
+              onChange={(e) => setAbSlug(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddAshby(); }}
+              placeholder="Slug (e.g. notion)"
+              className="w-36 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <button
+              onClick={handleAddAshby}
+              disabled={!abSlug.trim() || !abName.trim()}
+              className="rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm px-3 py-1.5 font-medium disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+
+          {ashbyTargets.length > 0 && (
+            <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+              {ashbyTargets.map((target) => (
+                <div
+                  key={target.id}
+                  className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium">
+                      {target.display_name}
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">{target.slug}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleAshbyTarget(target.id, !target.enabled)}
+                      className={`text-xs rounded-full px-2.5 py-0.5 font-medium transition-colors ${
+                        target.enabled
+                          ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {target.enabled ? "Enabled" : "Disabled"}
+                    </button>
+                    <button
+                      onClick={() => removeAshbyTarget(target.id)}
+                      className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Section>
+
       {companies.length > 0 && (
         <Section
           title="Companies"
@@ -314,6 +393,11 @@ export function SettingsView() {
                   {lvNames.has(company.name.toLowerCase()) && (
                     <span className="text-xs rounded-full px-2 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
                       Lever
+                    </span>
+                  )}
+                  {abNames.has(company.name.toLowerCase()) && (
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+                      Ashby
                     </span>
                   )}
                 </div>

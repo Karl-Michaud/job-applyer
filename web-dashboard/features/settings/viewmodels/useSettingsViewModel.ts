@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/shared/supabase/client";
-import { Preferences, Company, GreenhouseTarget, LeverTarget } from "@/features/settings/models/types";
+import { Preferences, Company, GreenhouseTarget, LeverTarget, AshbyTarget } from "@/features/settings/models/types";
 
 const DEFAULT_PREFS: Preferences = {
   target_roles: [],
@@ -18,6 +18,7 @@ interface UseSettingsViewModel {
   companies: Company[];
   greenhouseTargets: GreenhouseTarget[];
   leverTargets: LeverTarget[];
+  ashbyTargets: AshbyTarget[];
   loading: boolean;
   error: string | null;
   updatePref: <K extends keyof Preferences>(key: K, value: Preferences[K]) => Promise<void>;
@@ -28,6 +29,9 @@ interface UseSettingsViewModel {
   addLeverTarget: (slug: string, displayName: string) => Promise<void>;
   removeLeverTarget: (id: string) => Promise<void>;
   toggleLeverTarget: (id: string, enabled: boolean) => Promise<void>;
+  addAshbyTarget: (slug: string, displayName: string) => Promise<void>;
+  removeAshbyTarget: (id: string) => Promise<void>;
+  toggleAshbyTarget: (id: string, enabled: boolean) => Promise<void>;
 }
 
 export function useSettingsViewModel(): UseSettingsViewModel {
@@ -35,6 +39,7 @@ export function useSettingsViewModel(): UseSettingsViewModel {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [greenhouseTargets, setGreenhouseTargets] = useState<GreenhouseTarget[]>([]);
   const [leverTargets, setLeverTargets] = useState<LeverTarget[]>([]);
+  const [ashbyTargets, setAshbyTargets] = useState<AshbyTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,17 +55,20 @@ export function useSettingsViewModel(): UseSettingsViewModel {
         { data: compData, error: compErr },
         { data: ghData, error: ghErr },
         { data: lvData, error: lvErr },
+        { data: abData, error: abErr },
       ] = await Promise.all([
         supabase.from("preferences").select("key, value"),
         supabase.from("companies").select("id, name, domain, blacklisted").order("name"),
         supabase.from("greenhouse_targets").select("id, slug, display_name, enabled").order("display_name"),
         supabase.from("lever_targets").select("id, slug, display_name, enabled").order("display_name"),
+        supabase.from("ashby_targets").select("id, slug, display_name, enabled").order("display_name"),
       ]);
 
       if (prefErr) { setError(prefErr.message); setLoading(false); return; }
       if (compErr) { setError(compErr.message); setLoading(false); return; }
       if (ghErr) { setError(ghErr.message); setLoading(false); return; }
       if (lvErr) { setError(lvErr.message); setLoading(false); return; }
+      if (abErr) { setError(abErr.message); setLoading(false); return; }
 
       const merged = { ...DEFAULT_PREFS };
       for (const row of prefData ?? []) {
@@ -76,6 +84,7 @@ export function useSettingsViewModel(): UseSettingsViewModel {
       setCompanies((compData as Company[]) ?? []);
       setGreenhouseTargets((ghData as GreenhouseTarget[]) ?? []);
       setLeverTargets((lvData as LeverTarget[]) ?? []);
+      setAshbyTargets((abData as AshbyTarget[]) ?? []);
       setLoading(false);
     }
 
@@ -180,11 +189,46 @@ export function useSettingsViewModel(): UseSettingsViewModel {
     []
   );
 
+  const addAshbyTarget = useCallback(
+    async (slug: string, displayName: string) => {
+      const { data, error } = await supabase
+        .from("ashby_targets")
+        .insert({ slug: slug.trim().toLowerCase(), display_name: displayName.trim() })
+        .select("id, slug, display_name, enabled")
+        .single();
+      if (error) { setError(error.message); return; }
+      setAshbyTargets((prev) => [...prev, data as AshbyTarget].sort((a, b) => a.display_name.localeCompare(b.display_name)));
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const removeAshbyTarget = useCallback(
+    async (id: string) => {
+      setAshbyTargets((prev) => prev.filter((t) => t.id !== id));
+      const { error } = await supabase.from("ashby_targets").delete().eq("id", id);
+      if (error) setError(error.message);
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const toggleAshbyTarget = useCallback(
+    async (id: string, enabled: boolean) => {
+      setAshbyTargets((prev) => prev.map((t) => (t.id === id ? { ...t, enabled } : t)));
+      const { error } = await supabase.from("ashby_targets").update({ enabled }).eq("id", id);
+      if (error) setError(error.message);
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
   return {
     prefs,
     companies,
     greenhouseTargets,
     leverTargets,
+    ashbyTargets,
     loading,
     error,
     updatePref,
@@ -195,5 +239,8 @@ export function useSettingsViewModel(): UseSettingsViewModel {
     addLeverTarget,
     removeLeverTarget,
     toggleLeverTarget,
+    addAshbyTarget,
+    removeAshbyTarget,
+    toggleAshbyTarget,
   };
 }

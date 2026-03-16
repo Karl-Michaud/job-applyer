@@ -27,3 +27,10 @@ export interface LeverTarget {
   display_name: string;
   enabled: boolean;
 }
+
+export interface AshbyTarget {
+  id: string;
+  slug: string;
+  display_name: string;
+  enabled: boolean;
+}
