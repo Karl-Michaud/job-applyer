@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import { ColumnDef, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { DataTable } from "@/shared/components/DataTable";
 import { Job, JobAction } from "@/features/jobs/models/types";
 import { JobStatusSelect } from "./JobStatusSelect";
@@ -9,6 +9,8 @@ import { JobDetailModal } from "./JobDetailModal";
 
 interface JobsTableProps {
   jobs: Job[];
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
   onAction: (jobId: string, action: JobAction) => void;
 }
 
@@ -46,10 +48,33 @@ function formatTerm(term: string | null): string {
   return term.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function JobsTable({ jobs, onAction }: JobsTableProps) {
+export function JobsTable({ jobs, rowSelection, onRowSelectionChange, onAction }: JobsTableProps) {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  const columns: ColumnDef<Job, unknown>[] = [
+  const columns: ColumnDef<Job, unknown>[] = useMemo(() => [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          className="rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+          checked={table.getIsAllPageRowsSelected()}
+          ref={(el) => { if (el) el.indeterminate = table.getIsSomePageRowsSelected(); }}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          className="rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+    },
     {
       id: "company",
       accessorFn: (row) => row.company.name,
@@ -121,13 +146,18 @@ export function JobsTable({ jobs, onAction }: JobsTableProps) {
         </div>
       ),
     },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [onAction]);
 
   return (
     <>
       <DataTable
         columns={columns}
         data={jobs}
+        selectable
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
+        getRowId={(row) => row.id}
         emptyMessage="No new jobs. Run the scraper to fetch more."
       />
       {selectedJob && (

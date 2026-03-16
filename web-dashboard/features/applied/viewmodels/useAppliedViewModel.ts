@@ -5,6 +5,12 @@ import { RowSelectionState } from "@tanstack/react-table";
 import { createClient } from "@/shared/supabase/client";
 import { Application, ApplicationStage } from "@/features/applied/models/types";
 
+function chunks<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
+  return result;
+}
+
 export type MoveBackDestination = "new" | "saved" | "archived";
 
 interface UseAppliedViewModel {
@@ -120,17 +126,15 @@ export function useAppliedViewModel(): UseAppliedViewModel {
       removeFromList(selectedIds);
       setRowSelection({});
 
-      const { error: delErr } = await supabase
-        .from("applications")
-        .delete()
-        .in("id", selectedIds);
-      if (delErr) { setError(delErr.message); return; }
+      for (const chunk of chunks(selectedIds, 500)) {
+        const { error: delErr } = await supabase.from("applications").delete().in("id", chunk);
+        if (delErr) { setError(delErr.message); return; }
+      }
 
-      const { error: jobErr } = await supabase
-        .from("jobs")
-        .update({ status: destination })
-        .in("id", jobIds);
-      if (jobErr) setError(jobErr.message);
+      for (const chunk of chunks(jobIds, 500)) {
+        const { error: jobErr } = await supabase.from("jobs").update({ status: destination }).in("id", chunk);
+        if (jobErr) { setError(jobErr.message); return; }
+      }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
     [rowSelection, removeFromList]

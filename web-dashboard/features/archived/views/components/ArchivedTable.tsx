@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ColumnDef, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { DataTable } from "@/shared/components/DataTable";
 import { Job } from "@/features/jobs/models/types";
@@ -50,7 +51,7 @@ export function ArchivedTable({
   onDelete,
   onRestore,
 }: ArchivedTableProps) {
-  const columns: ColumnDef<Job, unknown>[] = [
+  const columns: ColumnDef<Job, unknown>[] = useMemo(() => [
     {
       id: "select",
       header: ({ table }) => (
@@ -152,7 +153,8 @@ export function ArchivedTable({
         </div>
       ),
     },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [onDelete, onRestore]);
 
   return (
     <DataTable

@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RowSelectionState } from "@tanstack/react-table";
 import { createClient } from "@/shared/supabase/client";
 import { Job } from "@/features/jobs/models/types";
+
+function chunks<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
+  return result;
+}
 
 interface UseArchivedViewModel {
   jobs: Job[];
@@ -22,6 +28,7 @@ export function useArchivedViewModel(): UseArchivedViewModel {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const jobsRef = useRef<Job[]>([]);
 
   const supabase = createClient();
 
@@ -44,7 +51,11 @@ export function useArchivedViewModel(): UseArchivedViewModel {
         .order("updated_at", { ascending: false });
 
       if (error) setError(error.message);
-      else setJobs((data as unknown as Job[]) ?? []);
+      else {
+        const fetched = (data as unknown as Job[]) ?? [];
+        jobsRef.current = fetched;
+        setJobs(fetched);
+      }
 
       setLoading(false);
     }
@@ -53,33 +64,37 @@ export function useArchivedViewModel(): UseArchivedViewModel {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const removeFromList = useCallback((ids: string[]) => {
+    const next = jobsRef.current.filter((j) => !ids.includes(j.id));
+    jobsRef.current = next;
+    setJobs(next);
+  }, []);
+
   const deleteJob = useCallback(async (jobId: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== jobId));
-    setRowSelection((prev) => {
-      const next = { ...prev };
-      delete next[jobId];
-      return next;
-    });
+    removeFromList([jobId]);
+    setRowSelection((prev) => { const next = { ...prev }; delete next[jobId]; return next; });
 
     const { error } = await supabase.from("jobs").delete().eq("id", jobId);
     if (error) setError(error.message);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [removeFromList]);
 
   const deleteSelected = useCallback(async () => {
     const selectedIds = Object.keys(rowSelection);
     if (selectedIds.length === 0) return;
 
-    setJobs((prev) => prev.filter((j) => !selectedIds.includes(j.id)));
+    removeFromList(selectedIds);
     setRowSelection({});
 
-    const { error } = await supabase.from("jobs").delete().in("id", selectedIds);
-    if (error) setError(error.message);
+    for (const chunk of chunks(selectedIds, 500)) {
+      const { error } = await supabase.from("jobs").delete().in("id", chunk);
+      if (error) { setError(error.message); return; }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowSelection]);
+  }, [rowSelection, removeFromList]);
 
   const restoreJob = useCallback(async (jobId: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== jobId));
+    removeFromList([jobId]);
 
     const { error } = await supabase
       .from("jobs")
@@ -87,7 +102,7 @@ export function useArchivedViewModel(): UseArchivedViewModel {
       .eq("id", jobId);
     if (error) setError(error.message);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [removeFromList]);
 
   const selectedCount = Object.keys(rowSelection).length;
 

@@ -1,20 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RowSelectionState } from "@tanstack/react-table";
 import { createClient } from "@/shared/supabase/client";
 import { Job, JobAction } from "@/features/jobs/models/types";
+
+function chunks<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
+  return result;
+}
 
 interface UseJobsViewModel {
   jobs: Job[];
   loading: boolean;
   error: string | null;
+  rowSelection: RowSelectionState;
+  setRowSelection: (updater: RowSelectionState | ((prev: RowSelectionState) => RowSelectionState)) => void;
+  selectedCount: number;
   handleAction: (jobId: string, action: JobAction) => Promise<void>;
+  batchAction: (action: JobAction) => Promise<void>;
 }
 
 export function useJobsViewModel(): UseJobsViewModel {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const jobsRef = useRef<Job[]>([]);
 
   const supabase = createClient();
 
@@ -37,7 +50,11 @@ export function useJobsViewModel(): UseJobsViewModel {
         .order("scraped_at", { ascending: false });
 
       if (error) setError(error.message);
-      else setJobs((data as unknown as Job[]) ?? []);
+      else {
+        const fetched = (data as unknown as Job[]) ?? [];
+        jobsRef.current = fetched;
+        setJobs(fetched);
+      }
 
       setLoading(false);
     }
@@ -46,9 +63,15 @@ export function useJobsViewModel(): UseJobsViewModel {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const removeFromList = useCallback((ids: string[]) => {
+    const next = jobsRef.current.filter((j) => !ids.includes(j.id));
+    jobsRef.current = next;
+    setJobs(next);
+  }, []);
+
   const handleAction = useCallback(
     async (jobId: string, action: JobAction) => {
-      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      removeFromList([jobId]);
 
       if (action === "applied") {
         const { error: appErr } = await supabase
@@ -70,8 +93,47 @@ export function useJobsViewModel(): UseJobsViewModel {
       }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [removeFromList]
   );
 
-  return { jobs, loading, error, handleAction };
+  const batchAction = useCallback(
+    async (action: JobAction) => {
+      const selectedIds = Object.keys(rowSelection);
+      if (selectedIds.length === 0) return;
+
+      const selected = jobsRef.current.filter((j) => selectedIds.includes(j.id));
+
+      removeFromList(selectedIds);
+      setRowSelection({});
+
+      const idChunks = chunks(selectedIds, 500);
+
+      if (action === "applied") {
+        for (const chunk of chunks(selected, 500)) {
+          const { error: appErr } = await supabase
+            .from("applications")
+            .upsert(
+              chunk.map((j) => ({ job_id: j.id, stage: "applied" })),
+              { onConflict: "job_id" }
+            );
+          if (appErr) { setError(appErr.message); return; }
+        }
+        for (const chunk of idChunks) {
+          const { error: jobErr } = await supabase.from("jobs").update({ status: "applied" }).in("id", chunk);
+          if (jobErr) { setError(jobErr.message); return; }
+        }
+      } else {
+        for (const chunk of idChunks) {
+          const { error: jobErr } = await supabase.from("jobs").update({ status: action }).in("id", chunk);
+          if (jobErr) { setError(jobErr.message); return; }
+        }
+      }
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rowSelection, removeFromList]
+  );
+
+  const selectedCount = Object.keys(rowSelection).length;
+
+  return { jobs, loading, error, rowSelection, setRowSelection, selectedCount, handleAction, batchAction };
 }

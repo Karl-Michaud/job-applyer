@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ColumnDef, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { DataTable } from "@/shared/components/DataTable";
 import { Application, ApplicationStage } from "@/features/applied/models/types";
@@ -32,7 +32,7 @@ function formatTerm(term: string | null): string {
 export function AppliedTable({ applications, rowSelection, onRowSelectionChange, onUpdateStage }: AppliedTableProps) {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-  const columns: ColumnDef<Application, unknown>[] = [
+  const columns: ColumnDef<Application, unknown>[] = useMemo(() => [
     {
       id: "select",
       header: ({ table }) => (
@@ -129,7 +129,8 @@ export function AppliedTable({ applications, rowSelection, onRowSelectionChange,
         </button>
       ),
     },
-  ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [onUpdateStage]);
 
   return (
     <>
