@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Job } from "@/features/jobs/models/types";
 
 interface JobDetailModalProps {
@@ -38,6 +38,14 @@ export function JobDetailModal({ job, onClose }: JobDetailModalProps) {
   }, [onClose]);
 
   const salary = formatSalary(job);
+  const [copied, setCopied] = useState(false);
+
+  function copyDescription() {
+    const text = job.description_text ?? job.description ?? "";
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <div
@@ -46,7 +54,7 @@ export function JobDetailModal({ job, onClose }: JobDetailModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-white dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800 px-6 py-4">
           <div className="min-w-0">
@@ -101,6 +109,16 @@ export function JobDetailModal({ job, onClose }: JobDetailModalProps) {
 
         {/* Description */}
         <div className="px-6 pb-6">
+          {(job.description_text || job.description) && (
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={copyDescription}
+                className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1"
+              >
+                {copied ? "Copied!" : "Copy description"}
+              </button>
+            </div>
+          )}
           {job.description_text ? (
             <div className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
               {job.description_text}

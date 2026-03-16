@@ -16,6 +16,17 @@ export function JobsView() {
             {loading ? "Loading..." : `${jobs.length} job${jobs.length !== 1 ? "s" : ""} from the scraper`}
           </p>
         </div>
+        <button
+          disabled
+          className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-500 dark:text-zinc-400 cursor-not-allowed opacity-60"
+          title="Scraper not connected yet"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5" strokeLinecap="round"/>
+            <path d="M10.5 2.5h3v3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Reload scraper
+        </button>
       </div>
 
       {error && (
