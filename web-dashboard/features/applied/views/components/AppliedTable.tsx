@@ -75,6 +75,27 @@ export function AppliedTable({ applications, rowSelection, onRowSelectionChange,
       ),
     },
     {
+      id: "location",
+      accessorFn: (row) => row.job.location,
+      header: "Location",
+      cell: ({ row }) => {
+        const loc = row.original.job.location;
+        const type = row.original.job.location_type;
+        if (!loc) return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{loc}</span>
+            {type === "remote" && (
+              <span className="text-xs rounded-full px-1.5 py-0.5 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400">Remote</span>
+            )}
+            {type === "hybrid" && (
+              <span className="text-xs rounded-full px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400">Hybrid</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       id: "term",
       accessorFn: (row) => row.job.term,
       header: "Period",

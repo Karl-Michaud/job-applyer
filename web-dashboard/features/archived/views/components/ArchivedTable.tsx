@@ -95,6 +95,26 @@ export function ArchivedTable({
       ),
     },
     {
+      accessorKey: "location",
+      header: "Location",
+      cell: ({ row }) => {
+        const loc = row.original.location;
+        const type = row.original.location_type;
+        if (!loc) return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{loc}</span>
+            {type === "remote" && (
+              <span className="text-xs rounded-full px-1.5 py-0.5 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400">Remote</span>
+            )}
+            {type === "hybrid" && (
+              <span className="text-xs rounded-full px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400">Hybrid</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       id: "posted_at",
       accessorKey: "posted_at",
       header: "Posted",
