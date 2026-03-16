@@ -5,6 +5,13 @@ import { RowSelectionState } from "@tanstack/react-table";
 import { createClient } from "@/shared/supabase/client";
 import { Job, JobAction } from "@/features/jobs/models/types";
 
+export interface ScraperConfig {
+  scrapers: string[];
+  applyFilters: boolean;
+}
+
+export const ALL_SCRAPERS = ["greenhouse", "lever", "ashby", "simplify"] as const;
+
 function chunks<T>(arr: T[], size: number): T[][] {
   const result: T[][] = [];
   for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
@@ -22,7 +29,7 @@ interface UseJobsViewModel {
   selectedCount: number;
   handleAction: (jobId: string, action: JobAction) => Promise<void>;
   batchAction: (action: JobAction) => Promise<void>;
-  runScraper: () => Promise<void>;
+  runScraper: (config: ScraperConfig) => Promise<void>;
 }
 
 export function useJobsViewModel(): UseJobsViewModel {
@@ -136,11 +143,15 @@ export function useJobsViewModel(): UseJobsViewModel {
     [rowSelection, removeFromList]
   );
 
-  const runScraper = useCallback(async () => {
+  const runScraper = useCallback(async (config: ScraperConfig) => {
     setScraping(true);
     setScraperError(null);
     try {
-      const res = await fetch("/api/scraper/run", { method: "POST" });
+      const res = await fetch("/api/scraper/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
       const json = await res.json();
       if (!json.ok) setScraperError(json.error ?? "Scraper failed");
       else await fetchJobs();

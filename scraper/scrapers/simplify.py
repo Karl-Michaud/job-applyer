@@ -9,11 +9,9 @@ from models.job import ScrapedJob
 
 RAW_URL = "https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships/dev/README.md"
 
-# Emoji flags that appear in role titles — strip before storing
 _ROLE_EMOJI = re.compile(r"[🛂🇺🇸🔒🔥🎓✅]")
 _CLOSED = "🔒"
 
-# Params added by Simplify — strip so URLs are canonical
 _UTM_STRIP = {"utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"}
 
 
@@ -33,133 +31,102 @@ def _infer_location_type(location: str) -> str | None:
     return "onsite"
 
 
-def _parse_company(cell: str) -> str:
-    """Extract plain company name from markdown/HTML cell."""
-    # Strip bold markers
-    cell = cell.replace("**", "")
-    # Extract inner text from any <a> tags
-    soup = BeautifulSoup(cell, "html.parser")
-    return soup.get_text(strip=True)
+def _cell_text(td) -> str:
+    return td.get_text(separator="\n", strip=True)
 
 
-def _parse_role(cell: str) -> str | None:
-    """Return cleaned role title, or None if the position is closed."""
-    if _CLOSED in cell:
+def _parse_company(td) -> str:
+    return _cell_text(td)
+
+
+def _parse_role(td) -> str | None:
+    raw = td.decode_contents()
+    if _CLOSED in raw:
         return None
-    title = _ROLE_EMOJI.sub("", cell).strip()
-    # Clean up extra whitespace left by emoji removal
-    return re.sub(r"\s{2,}", " ", title).strip()
+    title = _ROLE_EMOJI.sub("", _cell_text(td)).strip()
+    return re.sub(r"\s{2,}", " ", title).strip() or None
 
 
-def _parse_location(cell: str) -> str:
-    """Extract location string, joining multiple locations with ' / '."""
-    soup = BeautifulSoup(cell, "html.parser")
-
-    # <details><summary>N locations</summary>loc1<br>loc2</details>
-    details = soup.find("details")
+def _parse_location(td) -> str:
+    # <details><summary>N locations</summary>loc1<br/>loc2</details>
+    details = td.find("details")
     if details:
-        # Remove the <summary> tag and collect remaining text
         summary = details.find("summary")
         if summary:
             summary.decompose()
         locs = [t.strip() for t in details.get_text(separator="\n").splitlines() if t.strip()]
-        return " / ".join(locs) if locs else ""
-
-    # Plain text, possibly with <br> separators
-    text = soup.get_text(separator="\n")
-    locs = [t.strip() for t in text.splitlines() if t.strip()]
-    return " / ".join(locs) if locs else ""
+        return " / ".join(locs)
+    locs = [t.strip() for t in _cell_text(td).splitlines() if t.strip()]
+    return " / ".join(locs)
 
 
-def _parse_apply_url(cell: str) -> str | None:
-    """Extract the first apply href from the Application column."""
-    soup = BeautifulSoup(cell, "html.parser")
-    a = soup.find("a", href=True)
-    if not a:
-        return None
-    href = a["href"]
-    # Skip Simplify profile links — they're not direct apply URLs
-    if "simplify.jobs" in href:
-        # Try the next <a>
-        for tag in soup.find_all("a", href=True):
-            if "simplify.jobs" not in tag["href"]:
-                href = tag["href"]
-                break
-        else:
-            return href  # fall back to simplify URL if nothing else
-    return _strip_utm(href)
+def _parse_apply_url(td) -> str | None:
+    for a in td.find_all("a", href=True):
+        href = a["href"]
+        if "simplify.jobs" not in href:
+            return _strip_utm(href)
+    # Fall back to simplify link if nothing else
+    a = td.find("a", href=True)
+    return _strip_utm(a["href"]) if a else None
 
 
-def _parse_age(cell: str) -> datetime | None:
-    """Convert relative age like '2d' to an absolute UTC datetime."""
-    m = re.match(r"(\d+)d", cell.strip())
+def _parse_age(td) -> datetime | None:
+    m = re.match(r"(\d+)d", _cell_text(td).strip())
     if not m:
         return None
-    days = int(m.group(1))
-    return datetime.now(tz=timezone.utc) - timedelta(days=days)
+    return datetime.now(tz=timezone.utc) - timedelta(days=int(m.group(1)))
 
 
-def _parse_table(md: str) -> list[ScrapedJob]:
+def _parse_table(html: str) -> list[ScrapedJob]:
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if not table:
+        print("[simplify] ERROR: No <table> found in README")
+        return []
+
     jobs: list[ScrapedJob] = []
     current_company = ""
 
-    in_table = False
-    for line in md.splitlines():
-        stripped = line.strip()
+    for tr in table.find_all("tr"):
+        tds = tr.find_all("td")
+        if len(tds) < 4:
+            continue  # header row or malformed
 
-        # Detect table start
-        if stripped.startswith("| Company") and "Role" in stripped:
-            in_table = True
-            continue
-        if in_table and stripped.startswith("|---"):
-            continue
-        # Blank line or non-table line ends the table
-        if in_table and not stripped.startswith("|"):
-            in_table = False
-            continue
-        if not in_table:
-            continue
+        company_td, role_td, location_td, app_td = tds[0], tds[1], tds[2], tds[3]
+        age_td = tds[4] if len(tds) > 4 else None
 
-        # Split columns (strip leading/trailing pipes)
-        cols = [c.strip() for c in stripped.strip("|").split("|")]
-        if len(cols) < 4:
-            continue
-
-        company_cell, role_cell, location_cell, app_cell = cols[0], cols[1], cols[2], cols[3]
-        age_cell = cols[4] if len(cols) > 4 else ""
-
-        # Resolve company name
-        if company_cell.strip() in ("↳", ""):
+        company_text = _parse_company(company_td)
+        if company_text == "↳" or company_text == "":
             company_name = current_company
         else:
-            company_name = _parse_company(company_cell)
+            company_name = company_text
             current_company = company_name
 
         if not company_name:
             continue
 
-        role = _parse_role(role_cell)
-        if role is None:  # closed
+        role = _parse_role(role_td)
+        if role is None:
             continue
 
-        apply_url = _parse_apply_url(app_cell)
+        apply_url = _parse_apply_url(app_td)
         if not apply_url:
             continue
 
-        location = _parse_location(location_cell)
+        location = _parse_location(location_td)
         location_type = _infer_location_type(location) if location else None
-        posted_at_dt = _parse_age(age_cell)
+        posted_at_dt = _parse_age(age_td) if age_td else None
         posted_at = posted_at_dt.isoformat() if posted_at_dt else None
 
         jobs.append(ScrapedJob(
             source_url=apply_url,
             title=role,
             company_name=company_name,
-            external_id=apply_url,  # URL is unique enough
+            external_id=apply_url,
             location=location or None,
             location_type=location_type,
             job_type="internship",
-            term=None,  # repo is already Summer 2026 specific
+            term=None,
             description=None,
             description_text=None,
             posted_at=posted_at,
@@ -169,7 +136,6 @@ def _parse_table(md: str) -> list[ScrapedJob]:
 
 
 def scrape() -> list[ScrapedJob]:
-    """Fetch and parse the Simplify Summer 2026 internships README."""
     print("[simplify] Fetching README...")
     try:
         resp = httpx.get(RAW_URL, timeout=15, follow_redirects=True)
@@ -178,6 +144,7 @@ def scrape() -> list[ScrapedJob]:
         print(f"[simplify] ERROR fetching README: {e}")
         return []
 
+    print(f"[simplify] Fetched {len(resp.text.splitlines())} lines")
     jobs = _parse_table(resp.text)
     print(f"[simplify] Total scraped: {len(jobs)} jobs")
     return jobs

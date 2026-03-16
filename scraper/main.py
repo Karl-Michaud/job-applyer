@@ -1,4 +1,5 @@
 import os
+import argparse
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -11,9 +12,12 @@ from filter import load_preferences, load_blacklisted_companies, apply as filter
 
 load_dotenv()
 
+ALL_SCRAPERS = ["greenhouse", "lever", "ashby", "simplify"]
 
-def _run(supabase, jobs):
-    jobs = filter_jobs(jobs, prefs, blacklisted_companies)
+
+def _run(supabase, jobs, apply_filters):
+    if apply_filters:
+        jobs = filter_jobs(jobs, prefs, blacklisted_companies)
     if jobs:
         company_names = {j.company_name for j in jobs}
         company_map = ensure_companies(supabase, company_names)
@@ -24,6 +28,16 @@ def _run(supabase, jobs):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--scrapers", nargs="*", default=ALL_SCRAPERS,
+                        help="Which scrapers to run (default: all)")
+    parser.add_argument("--no-filter", action="store_true",
+                        help="Skip preference/keyword filtering and insert all scraped jobs")
+    args = parser.parse_args()
+
+    enabled = set(args.scrapers)
+    apply_filters = not args.no_filter
+
     supabase = create_client(
         os.environ["SUPABASE_URL"],
         os.environ["SUPABASE_KEY"],
@@ -33,33 +47,38 @@ def main():
     prefs = load_preferences(supabase)
     blacklisted_companies = load_blacklisted_companies(supabase)
 
-    # --- Greenhouse ---
-    print("\n=== Greenhouse ===")
-    targets = supabase.table("greenhouse_targets").select("slug, display_name, enabled").execute().data or []
-    if not targets:
-        print("No greenhouse targets configured. Add some in Settings.")
+    if apply_filters:
+        print("[filter] Filters ON")
     else:
-        _run(supabase, scrape_greenhouse(targets))
+        print("[filter] Filters OFF — inserting all scraped jobs")
 
-    # --- Lever ---
-    print("\n=== Lever ===")
-    targets = supabase.table("lever_targets").select("slug, display_name, enabled").execute().data or []
-    if not targets:
-        print("No lever targets configured. Add some in Settings.")
-    else:
-        _run(supabase, scrape_lever(targets))
+    if "greenhouse" in enabled:
+        print("\n=== Greenhouse ===")
+        targets = supabase.table("greenhouse_targets").select("slug, display_name, enabled").execute().data or []
+        if not targets:
+            print("No greenhouse targets configured. Add some in Settings.")
+        else:
+            _run(supabase, scrape_greenhouse(targets), apply_filters)
 
-    # --- Ashby ---
-    print("\n=== Ashby ===")
-    targets = supabase.table("ashby_targets").select("slug, display_name, enabled").execute().data or []
-    if not targets:
-        print("No ashby targets configured. Add some in Settings.")
-    else:
-        _run(supabase, scrape_ashby(targets))
+    if "lever" in enabled:
+        print("\n=== Lever ===")
+        targets = supabase.table("lever_targets").select("slug, display_name, enabled").execute().data or []
+        if not targets:
+            print("No lever targets configured. Add some in Settings.")
+        else:
+            _run(supabase, scrape_lever(targets), apply_filters)
 
-    # --- Simplify ---
-    print("\n=== Simplify ===")
-    _run(supabase, scrape_simplify())
+    if "ashby" in enabled:
+        print("\n=== Ashby ===")
+        targets = supabase.table("ashby_targets").select("slug, display_name, enabled").execute().data or []
+        if not targets:
+            print("No ashby targets configured. Add some in Settings.")
+        else:
+            _run(supabase, scrape_ashby(targets), apply_filters)
+
+    if "simplify" in enabled:
+        print("\n=== Simplify ===")
+        _run(supabase, scrape_simplify(), apply_filters)
 
     print("\nDone.")
 
