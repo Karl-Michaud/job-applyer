@@ -86,14 +86,14 @@ export function useJobsStatsViewModel(): UseJobsStatsViewModel {
 
   useEffect(() => {
     async function fetch() {
-      const [{ data: appData }, { data: prefData }] = await Promise.all([
-        supabase.from("applications").select("applied_at"),
+      const [{ data: jobData }, { data: prefData }] = await Promise.all([
+        supabase.from("jobs").select("updated_at").eq("status", "applied"),
         supabase.from("preferences").select("value").eq("key", "daily_goal").single(),
       ]);
 
       const map = new Map<string, number>();
-      for (const row of appData ?? []) {
-        const day = (row.applied_at as string).split("T")[0];
+      for (const row of jobData ?? []) {
+        const day = (row.updated_at as string).split("T")[0];
         map.set(day, (map.get(day) ?? 0) + 1);
       }
 

@@ -53,7 +53,7 @@ export function useInterestedViewModel(): UseInterestedViewModel {
       if (action === "applied") {
         const { error: appErr } = await supabase
           .from("applications")
-          .insert({ job_id: jobId, stage: "applied" });
+          .upsert({ job_id: jobId, stage: "applied" }, { onConflict: "job_id" });
         if (appErr) { setError(appErr.message); return; }
 
         const { error: jobErr } = await supabase
