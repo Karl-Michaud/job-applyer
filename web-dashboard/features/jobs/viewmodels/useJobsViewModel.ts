@@ -15,53 +15,56 @@ interface UseJobsViewModel {
   jobs: Job[];
   loading: boolean;
   error: string | null;
+  scraping: boolean;
+  scraperError: string | null;
   rowSelection: RowSelectionState;
   setRowSelection: (updater: RowSelectionState | ((prev: RowSelectionState) => RowSelectionState)) => void;
   selectedCount: number;
   handleAction: (jobId: string, action: JobAction) => Promise<void>;
   batchAction: (action: JobAction) => Promise<void>;
+  runScraper: () => Promise<void>;
 }
 
 export function useJobsViewModel(): UseJobsViewModel {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [scraping, setScraping] = useState(false);
+  const [scraperError, setScraperError] = useState<string | null>(null);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const jobsRef = useRef<Job[]>([]);
 
   const supabase = createClient();
 
-  useEffect(() => {
-    async function fetchJobs() {
-      setLoading(true);
-      setError(null);
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      const { data, error } = await supabase
-        .from("jobs")
-        .select(`
-          id, title, source_url, location, location_type, job_type,
-          term, duration, description, description_text,
-          posted_at, closing_at, deadline_type,
-          salary_min, salary_max, tags,
-          status, rank, notes, scraped_at, updated_at,
-          company:companies ( id, name, domain )
-        `)
-        .eq("status", "new")
-        .order("scraped_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("jobs")
+      .select(`
+        id, title, source_url, location, location_type, job_type,
+        term, duration, description, description_text,
+        posted_at, closing_at, deadline_type,
+        salary_min, salary_max, tags,
+        status, rank, notes, scraped_at, updated_at,
+        company:companies ( id, name, domain )
+      `)
+      .eq("status", "new")
+      .order("scraped_at", { ascending: false });
 
-      if (error) setError(error.message);
-      else {
-        const fetched = (data as unknown as Job[]) ?? [];
-        jobsRef.current = fetched;
-        setJobs(fetched);
-      }
-
-      setLoading(false);
+    if (error) setError(error.message);
+    else {
+      const fetched = (data as unknown as Job[]) ?? [];
+      jobsRef.current = fetched;
+      setJobs(fetched);
     }
 
-    fetchJobs();
+    setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const removeFromList = useCallback((ids: string[]) => {
     const next = jobsRef.current.filter((j) => !ids.includes(j.id));
@@ -133,7 +136,22 @@ export function useJobsViewModel(): UseJobsViewModel {
     [rowSelection, removeFromList]
   );
 
+  const runScraper = useCallback(async () => {
+    setScraping(true);
+    setScraperError(null);
+    try {
+      const res = await fetch("/api/scraper/run", { method: "POST" });
+      const json = await res.json();
+      if (!json.ok) setScraperError(json.error ?? "Scraper failed");
+      else await fetchJobs();
+    } catch (e) {
+      setScraperError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setScraping(false);
+    }
+  }, [fetchJobs]);
+
   const selectedCount = Object.keys(rowSelection).length;
 
-  return { jobs, loading, error, rowSelection, setRowSelection, selectedCount, handleAction, batchAction };
+  return { jobs, loading, error, scraping, scraperError, rowSelection, setRowSelection, selectedCount, handleAction, batchAction, runScraper };
 }
