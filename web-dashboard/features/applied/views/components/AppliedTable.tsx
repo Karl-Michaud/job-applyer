@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { ColumnDef, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { DataTable } from "@/shared/components/DataTable";
 import { Application, ApplicationStage } from "@/features/applied/models/types";
+import { Job } from "@/features/jobs/models/types";
 import { StageSelect } from "./StageSelect";
+import { JobDetailModal } from "@/features/jobs/views/components/JobDetailModal";
 
 interface AppliedTableProps {
   applications: Application[];
@@ -27,6 +30,8 @@ function formatTerm(term: string | null): string {
 }
 
 export function AppliedTable({ applications, rowSelection, onRowSelectionChange, onUpdateStage }: AppliedTableProps) {
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
   const columns: ColumnDef<Application, unknown>[] = [
     {
       id: "select",
@@ -111,17 +116,35 @@ export function AppliedTable({ applications, rowSelection, onRowSelectionChange,
         />
       ),
     },
+    {
+      id: "actions",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <button
+          onClick={() => setSelectedJob(row.original.job)}
+          className="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
+        >
+          See more →
+        </button>
+      ),
+    },
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      data={applications}
-      selectable
-      rowSelection={rowSelection}
-      onRowSelectionChange={onRowSelectionChange}
-      getRowId={(row) => row.id}
-      emptyMessage="No applications yet. Mark a job as applied to track it here."
-    />
+    <>
+      <DataTable
+        columns={columns}
+        data={applications}
+        selectable
+        rowSelection={rowSelection}
+        onRowSelectionChange={onRowSelectionChange}
+        getRowId={(row) => row.id}
+        emptyMessage="No applications yet. Mark a job as applied to track it here."
+      />
+      {selectedJob && (
+        <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+      )}
+    </>
   );
 }

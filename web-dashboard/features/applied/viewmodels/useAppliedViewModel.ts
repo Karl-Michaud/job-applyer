@@ -42,7 +42,8 @@ export function useAppliedViewModel(): UseAppliedViewModel {
           created_at, updated_at,
           job:jobs (
             id, title, source_url, location, location_type, job_type,
-            term, duration, posted_at, closing_at, deadline_type,
+            term, duration, description, description_text,
+            posted_at, closing_at, deadline_type,
             salary_min, salary_max, tags, status, rank, notes,
             scraped_at, updated_at,
             company:companies ( id, name, domain )
