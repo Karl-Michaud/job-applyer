@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSettingsViewModel } from "@/features/settings/viewmodels/useSettingsViewModel";
 import { TagInput } from "./components/TagInput";
 
@@ -30,8 +31,34 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 export function SettingsView() {
-  const { prefs, companies, loading, error, updatePref, toggleCompanyBlacklist } =
-    useSettingsViewModel();
+  const {
+    prefs, companies, greenhouseTargets, leverTargets, loading, error,
+    updatePref, toggleCompanyBlacklist,
+    addGreenhouseTarget, removeGreenhouseTarget, toggleGreenhouseTarget,
+    addLeverTarget, removeLeverTarget, toggleLeverTarget,
+  } = useSettingsViewModel();
+
+  const [ghSlug, setGhSlug] = useState("");
+  const [ghName, setGhName] = useState("");
+  const [lvSlug, setLvSlug] = useState("");
+  const [lvName, setLvName] = useState("");
+
+  const ghNames = new Set(greenhouseTargets.map((t) => t.display_name.toLowerCase()));
+  const lvNames = new Set(leverTargets.map((t) => t.display_name.toLowerCase()));
+
+  async function handleAddGreenhouse() {
+    if (!ghSlug.trim() || !ghName.trim()) return;
+    await addGreenhouseTarget(ghSlug, ghName);
+    setGhSlug("");
+    setGhName("");
+  }
+
+  async function handleAddLever() {
+    if (!lvSlug.trim() || !lvName.trim()) return;
+    await addLeverTarget(lvSlug, lvName);
+    setLvSlug("");
+    setLvName("");
+  }
 
   if (loading) {
     return (
@@ -111,6 +138,142 @@ export function SettingsView() {
         </div>
       </Section>
 
+      <Section
+        title="Greenhouse Targets"
+        description="Companies to scrape via the Greenhouse API. Deduplication is handled automatically by URL."
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={ghName}
+              onChange={(e) => setGhName(e.target.value)}
+              placeholder="Display name (e.g. Shopify)"
+              className="flex-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <input
+              type="text"
+              value={ghSlug}
+              onChange={(e) => setGhSlug(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddGreenhouse(); }}
+              placeholder="Slug (e.g. shopify)"
+              className="w-36 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <button
+              onClick={handleAddGreenhouse}
+              disabled={!ghSlug.trim() || !ghName.trim()}
+              className="rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm px-3 py-1.5 font-medium disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+
+          {greenhouseTargets.length > 0 && (
+            <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+              {greenhouseTargets.map((target) => (
+                <div
+                  key={target.id}
+                  className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium">
+                      {target.display_name}
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">{target.slug}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleGreenhouseTarget(target.id, !target.enabled)}
+                      className={`text-xs rounded-full px-2.5 py-0.5 font-medium transition-colors ${
+                        target.enabled
+                          ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {target.enabled ? "Enabled" : "Disabled"}
+                    </button>
+                    <button
+                      onClick={() => removeGreenhouseTarget(target.id)}
+                      className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Section>
+
+      <Section
+        title="Lever Targets"
+        description="Companies to scrape via the Lever API. Find the slug in the careers page URL: jobs.lever.co/{slug}"
+      >
+        <div className="flex flex-col gap-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={lvName}
+              onChange={(e) => setLvName(e.target.value)}
+              placeholder="Display name (e.g. Spotify)"
+              className="flex-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <input
+              type="text"
+              value={lvSlug}
+              onChange={(e) => setLvSlug(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddLever(); }}
+              placeholder="Slug (e.g. spotify)"
+              className="w-36 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            />
+            <button
+              onClick={handleAddLever}
+              disabled={!lvSlug.trim() || !lvName.trim()}
+              className="rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm px-3 py-1.5 font-medium disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+
+          {leverTargets.length > 0 && (
+            <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800 rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+              {leverTargets.map((target) => (
+                <div
+                  key={target.id}
+                  className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium">
+                      {target.display_name}
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">{target.slug}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleLeverTarget(target.id, !target.enabled)}
+                      className={`text-xs rounded-full px-2.5 py-0.5 font-medium transition-colors ${
+                        target.enabled
+                          ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      }`}
+                    >
+                      {target.enabled ? "Enabled" : "Disabled"}
+                    </button>
+                    <button
+                      onClick={() => removeLeverTarget(target.id)}
+                      className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Section>
+
       {companies.length > 0 && (
         <Section
           title="Companies"
@@ -122,12 +285,22 @@ export function SettingsView() {
                 key={company.id}
                 className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
               >
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="text-sm text-zinc-800 dark:text-zinc-200 font-medium">
                     {company.name}
                   </span>
                   {company.domain && (
-                    <span className="ml-2 text-xs text-zinc-400">{company.domain}</span>
+                    <span className="text-xs text-zinc-400">{company.domain}</span>
+                  )}
+                  {ghNames.has(company.name.toLowerCase()) && (
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                      Greenhouse
+                    </span>
+                  )}
+                  {lvNames.has(company.name.toLowerCase()) && (
+                    <span className="text-xs rounded-full px-2 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                      Lever
+                    </span>
                   )}
                 </div>
                 <button

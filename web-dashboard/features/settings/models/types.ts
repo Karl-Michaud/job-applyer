@@ -12,3 +12,17 @@ export interface Company {
   domain: string | null;
   blacklisted: boolean;
 }
+
+export interface GreenhouseTarget {
+  id: string;
+  slug: string;
+  display_name: string;
+  enabled: boolean;
+}
+
+export interface LeverTarget {
+  id: string;
+  slug: string;
+  display_name: string;
+  enabled: boolean;
+}
