@@ -1,20 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RowSelectionState } from "@tanstack/react-table";
 import { createClient } from "@/shared/supabase/client";
 import { Application, ApplicationStage } from "@/features/applied/models/types";
+
+export type MoveBackDestination = "new" | "saved" | "archived";
 
 interface UseAppliedViewModel {
   applications: Application[];
   loading: boolean;
   error: string | null;
+  rowSelection: RowSelectionState;
+  setRowSelection: (updater: RowSelectionState | ((prev: RowSelectionState) => RowSelectionState)) => void;
+  selectedCount: number;
   updateStage: (applicationId: string, jobId: string, stage: ApplicationStage) => Promise<void>;
+  moveSelected: (destination: MoveBackDestination) => Promise<void>;
 }
 
 export function useAppliedViewModel(): UseAppliedViewModel {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const applicationsRef = useRef<Application[]>([]);
 
   const supabase = createClient();
 
@@ -43,7 +52,11 @@ export function useAppliedViewModel(): UseAppliedViewModel {
         .order("applied_at", { ascending: false });
 
       if (error) setError(error.message);
-      else setApplications((data as unknown as Application[]) ?? []);
+      else {
+        const apps = (data as unknown as Application[]) ?? [];
+        applicationsRef.current = apps;
+        setApplications(apps);
+      }
 
       setLoading(false);
     }
@@ -52,24 +65,36 @@ export function useAppliedViewModel(): UseAppliedViewModel {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const removeFromList = useCallback((ids: string[]) => {
+    const next = applicationsRef.current.filter((a) => !ids.includes(a.id));
+    applicationsRef.current = next;
+    setApplications(next);
+  }, []);
+
   const updateStage = useCallback(
     async (applicationId: string, jobId: string, stage: ApplicationStage) => {
-      // Optimistically remove from list if withdrawn
+      const app = applicationsRef.current.find((a) => a.id === applicationId);
+      if (!app) return;
+
+      const newEntry = { stage, changed_at: new Date().toISOString() };
+      const updatedHistory = [...(app.stage_history ?? []), newEntry];
+
       if (stage === "withdrawn") {
-        setApplications((prev) => prev.filter((a) => a.id !== applicationId));
+        removeFromList([applicationId]);
       } else {
-        setApplications((prev) =>
-          prev.map((a) => (a.id === applicationId ? { ...a, stage } : a))
+        const next = applicationsRef.current.map((a) =>
+          a.id === applicationId ? { ...a, stage, stage_history: updatedHistory } : a
         );
+        applicationsRef.current = next;
+        setApplications(next);
       }
 
       const { error: appErr } = await supabase
         .from("applications")
-        .update({ stage })
+        .update({ stage, stage_history: updatedHistory })
         .eq("id", applicationId);
       if (appErr) { setError(appErr.message); return; }
 
-      // Withdrawn → archive the job
       if (stage === "withdrawn") {
         const { error: jobErr } = await supabase
           .from("jobs")
@@ -79,8 +104,46 @@ export function useAppliedViewModel(): UseAppliedViewModel {
       }
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [removeFromList]
   );
 
-  return { applications, loading, error, updateStage };
+  const moveSelected = useCallback(
+    async (destination: MoveBackDestination) => {
+      const selectedIds = Object.keys(rowSelection);
+      if (selectedIds.length === 0) return;
+
+      const selected = applicationsRef.current.filter((a) => selectedIds.includes(a.id));
+      const jobIds = selected.map((a) => a.job_id);
+
+      removeFromList(selectedIds);
+      setRowSelection({});
+
+      const { error: delErr } = await supabase
+        .from("applications")
+        .delete()
+        .in("id", selectedIds);
+      if (delErr) { setError(delErr.message); return; }
+
+      const { error: jobErr } = await supabase
+        .from("jobs")
+        .update({ status: destination })
+        .in("id", jobIds);
+      if (jobErr) setError(jobErr.message);
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rowSelection, removeFromList]
+  );
+
+  const selectedCount = Object.keys(rowSelection).length;
+
+  return {
+    applications,
+    loading,
+    error,
+    rowSelection,
+    setRowSelection,
+    selectedCount,
+    updateStage,
+    moveSelected,
+  };
 }

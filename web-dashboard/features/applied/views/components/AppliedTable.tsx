@@ -1,12 +1,14 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { DataTable } from "@/shared/components/DataTable";
 import { Application, ApplicationStage } from "@/features/applied/models/types";
 import { StageSelect } from "./StageSelect";
 
 interface AppliedTableProps {
   applications: Application[];
+  rowSelection: RowSelectionState;
+  onRowSelectionChange: OnChangeFn<RowSelectionState>;
   onUpdateStage: (applicationId: string, jobId: string, stage: ApplicationStage) => void;
 }
 
@@ -24,8 +26,31 @@ function formatTerm(term: string | null): string {
   return term.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function AppliedTable({ applications, onUpdateStage }: AppliedTableProps) {
+export function AppliedTable({ applications, rowSelection, onRowSelectionChange, onUpdateStage }: AppliedTableProps) {
   const columns: ColumnDef<Application, unknown>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          className="rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+          checked={table.getIsAllPageRowsSelected()}
+          ref={(el) => { if (el) el.indeterminate = table.getIsSomePageRowsSelected(); }}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          className="rounded border-zinc-300 dark:border-zinc-600 cursor-pointer"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+    },
     {
       id: "company",
       accessorFn: (row) => row.job.company.name,
@@ -92,6 +117,10 @@ export function AppliedTable({ applications, onUpdateStage }: AppliedTableProps)
     <DataTable
       columns={columns}
       data={applications}
+      selectable
+      rowSelection={rowSelection}
+      onRowSelectionChange={onRowSelectionChange}
+      getRowId={(row) => row.id}
       emptyMessage="No applications yet. Mark a job as applied to track it here."
     />
   );
