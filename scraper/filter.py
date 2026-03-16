@@ -79,8 +79,8 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
         if company_lower in all_blacklisted:
             continue
 
-        # Job type keywords: whole-word match against title (so "intern" won't match "internal")
-        if job_type_keywords and not any(
+        # Job type keywords: whole-word match against title OR scraper already classified it as internship
+        if job_type_keywords and job.job_type != "internship" and not any(
             re.search(r"\b" + re.escape(kw.lower()) + r"\b", title_lower)
             for kw in job_type_keywords
         ):
