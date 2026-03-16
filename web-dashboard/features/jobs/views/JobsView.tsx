@@ -2,6 +2,7 @@
 
 import { useJobsViewModel } from "@/features/jobs/viewmodels/useJobsViewModel";
 import { JobsTable } from "./components/JobsTable";
+import { JobsStats } from "./components/JobsStats";
 
 export function JobsView() {
   const { jobs, loading, error, handleAction } = useJobsViewModel();
@@ -22,6 +23,8 @@ export function JobsView() {
           {error}
         </div>
       )}
+
+      <JobsStats />
 
       {loading ? (
         <div className="flex items-center justify-center py-24 text-zinc-400 dark:text-zinc-500 text-sm">
