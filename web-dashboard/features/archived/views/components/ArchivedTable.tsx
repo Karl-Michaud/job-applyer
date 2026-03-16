@@ -97,18 +97,19 @@ export function ArchivedTable({
     {
       accessorKey: "location",
       header: "Location",
+      size: 160,
       cell: ({ row }) => {
-        const loc = row.original.location;
+        const loc = row.original.location?.split(" / ")[0] ?? null;
         const type = row.original.location_type;
         if (!loc) return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
         return (
-          <div className="flex items-center gap-1.5">
-            <span className="text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{loc}</span>
+          <div className="flex items-center gap-1.5 max-w-[160px]">
+            <span className="text-zinc-500 dark:text-zinc-400 truncate">{loc}</span>
             {type === "remote" && (
-              <span className="text-xs rounded-full px-1.5 py-0.5 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400">Remote</span>
+              <span className="shrink-0 text-xs rounded-full px-1.5 py-0.5 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400">Remote</span>
             )}
             {type === "hybrid" && (
-              <span className="text-xs rounded-full px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400">Hybrid</span>
+              <span className="shrink-0 text-xs rounded-full px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400">Hybrid</span>
             )}
           </div>
         );
