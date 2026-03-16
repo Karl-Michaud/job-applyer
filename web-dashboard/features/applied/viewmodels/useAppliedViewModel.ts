@@ -76,8 +76,9 @@ export function useAppliedViewModel(): UseAppliedViewModel {
       const app = applicationsRef.current.find((a) => a.id === applicationId);
       if (!app) return;
 
-      const newEntry = { stage, changed_at: new Date().toISOString() };
-      const updatedHistory = [...(app.stage_history ?? []), newEntry];
+      const updatedHistory = stage === "applied"
+        ? []
+        : [...(app.stage_history ?? []), { stage, changed_at: new Date().toISOString() }];
 
       if (stage === "withdrawn") {
         removeFromList([applicationId]);

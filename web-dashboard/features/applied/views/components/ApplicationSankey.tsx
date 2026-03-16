@@ -32,11 +32,13 @@ function getPath(app: Application): string[] {
   const history = app.stage_history ?? [];
 
   if (history.length > 0) {
-    // Build path from recorded history
+    // Build path from recorded history, skipping any label already seen to prevent cycles
+    const seen = new Set<string>(["Applied"]);
     const stages: string[] = ["Applied"];
     for (const entry of history) {
       const label = STAGE_LABEL[entry.stage];
-      if (label && label !== stages[stages.length - 1]) {
+      if (label && !seen.has(label)) {
+        seen.add(label);
         stages.push(label);
       }
     }
@@ -56,10 +58,13 @@ function getPath(app: Application): string[] {
     return path;
   }
 
-  // Terminal or still at applied — just two nodes
-  return ["Applied", STAGE_LABEL[app.stage] ?? app.stage].filter(
-    (s, i, arr) => i === 0 || s !== arr[i - 1]
-  );
+  // Still at initial applied stage — no movement yet
+  if (app.stage === "applied") {
+    return ["Applied", "In Progress"];
+  }
+
+  // Terminal stage without history (rejected, ghosted, etc.)
+  return ["Applied", STAGE_LABEL[app.stage] ?? app.stage];
 }
 
 function buildSankeyData(applications: Application[]) {
