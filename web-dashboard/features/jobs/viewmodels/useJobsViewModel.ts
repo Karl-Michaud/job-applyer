@@ -58,7 +58,7 @@ export function useJobsViewModel(): UseJobsViewModel {
 
         const { error: jobErr } = await supabase
           .from("jobs")
-          .update({ status: "archived" })
+          .update({ status: "applied" })
           .eq("id", jobId);
         if (jobErr) setError(jobErr.message);
       } else {
