@@ -1,6 +1,7 @@
 export interface Preferences {
   target_roles: string[];
   target_locations: string[];
+  job_type_keywords: string[];
   must_have_keywords: string[];
   blacklisted_keywords: string[];
   blacklisted_companies: string[];

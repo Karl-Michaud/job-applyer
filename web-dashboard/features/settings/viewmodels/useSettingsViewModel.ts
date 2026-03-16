@@ -7,6 +7,7 @@ import { Preferences, Company, GreenhouseTarget, LeverTarget, AshbyTarget } from
 const DEFAULT_PREFS: Preferences = {
   target_roles: [],
   target_locations: [],
+  job_type_keywords: [],
   must_have_keywords: [],
   blacklisted_keywords: [],
   blacklisted_companies: [],

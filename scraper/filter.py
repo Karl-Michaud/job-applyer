@@ -59,6 +59,7 @@ def load_blacklisted_companies(supabase) -> set[str]:
 def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) -> list[ScrapedJob]:
     target_roles: list[str] = prefs.get("target_roles") or []
     target_locations: list[str] = prefs.get("target_locations") or []
+    job_type_keywords: list[str] = prefs.get("job_type_keywords") or []
     must_have_keywords: list[str] = prefs.get("must_have_keywords") or []
     blacklisted_keywords: list[str] = prefs.get("blacklisted_keywords") or []
     pref_blacklisted_companies: list[str] = [c.lower() for c in (prefs.get("blacklisted_companies") or [])]
@@ -78,7 +79,14 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
         if company_lower in all_blacklisted:
             continue
 
-        # Must-have keywords: title must contain at least one (both sides lowercased)
+        # Job type keywords: whole-word match against title (so "intern" won't match "internal")
+        if job_type_keywords and not any(
+            re.search(r"\b" + re.escape(kw.lower()) + r"\b", title_lower)
+            for kw in job_type_keywords
+        ):
+            continue
+
+        # Must-have keywords: substring match, title must contain at least one
         if must_have_keywords and not any(kw.lower() in title_lower for kw in must_have_keywords):
             continue
 

@@ -119,6 +119,20 @@ export function SettingsView() {
       </Section>
 
       <Section
+        title="Job Type"
+        description="Title must contain at least one of these as a whole word. Use this for level/type filtering — 'intern' won't match 'internal' or 'international'."
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label>Job Type Keywords</Label>
+          <TagInput
+            tags={prefs.job_type_keywords}
+            onChange={(v) => updatePref("job_type_keywords", v)}
+            placeholder="e.g. intern, internship, co-op..."
+          />
+        </div>
+      </Section>
+
+      <Section
         title="Must-Have Keywords"
         description="Job titles must contain at least one of these words (case-insensitive). Leave empty to allow all titles."
       >
