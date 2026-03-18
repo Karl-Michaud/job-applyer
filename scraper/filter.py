@@ -88,10 +88,12 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
 
         if cutoff and job.posted_at:
             try:
-                posted = datetime.fromisoformat(job.posted_at)
+                posted = datetime.fromisoformat(job.posted_at.replace("Z", "+00:00"))
+                if posted.tzinfo is None:
+                    posted = posted.replace(tzinfo=timezone.utc)
                 if posted < cutoff:
                     dropped["too_old"] += 1; continue
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
         if job_type_keywords and job.job_type != "internship" and not any(
