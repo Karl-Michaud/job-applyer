@@ -22,6 +22,7 @@ interface UseAppliedViewModel {
   selectedCount: number;
   updateStage: (applicationId: string, jobId: string, stage: ApplicationStage) => Promise<void>;
   moveSelected: (destination: MoveBackDestination) => Promise<void>;
+  addManual: (data: { company: string; title: string; url: string; appliedAt: string }) => Promise<void>;
 }
 
 export function useAppliedViewModel(): UseAppliedViewModel {
@@ -140,6 +141,68 @@ export function useAppliedViewModel(): UseAppliedViewModel {
     [rowSelection, removeFromList]
   );
 
+  const addManual = useCallback(
+    async ({ company, title, url, appliedAt }: { company: string; title: string; url: string; appliedAt: string }) => {
+      // Upsert company
+      const { data: existingCompany } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("name", company)
+        .maybeSingle();
+
+      let companyId: string;
+      if (existingCompany) {
+        companyId = existingCompany.id;
+      } else {
+        const { data: newCompany, error: compErr } = await supabase
+          .from("companies")
+          .insert({ name: company })
+          .select("id")
+          .single();
+        if (compErr) throw new Error(compErr.message);
+        companyId = newCompany.id;
+      }
+
+      // Create job
+      const sourceUrl = url || `manual:${crypto.randomUUID()}`;
+      const { data: job, error: jobErr } = await supabase
+        .from("jobs")
+        .insert({
+          source_url: sourceUrl,
+          title,
+          company_id: companyId,
+          status: "applied",
+          job_type: "internship",
+        })
+        .select("id, title, source_url, location, location_type, job_type, term, duration, description, description_text, posted_at, closing_at, deadline_type, salary_min, salary_max, tags, status, rank, notes, scraped_at, updated_at")
+        .single();
+      if (jobErr) throw new Error(jobErr.message);
+
+      // Create application
+      const { data: app, error: appErr } = await supabase
+        .from("applications")
+        .insert({
+          job_id: job.id,
+          stage: "applied",
+          applied_at: appliedAt,
+        })
+        .select("id, job_id, applied_at, stage, stage_history, cover_letter, resume_version, contact_name, contact_email, next_action_date, next_action_note, created_at, updated_at")
+        .single();
+      if (appErr) throw new Error(appErr.message);
+
+      const newApp: Application = {
+        ...app,
+        job: { ...job, company: { id: companyId, name: company, domain: null } },
+      };
+
+      const updated = [newApp, ...applicationsRef.current];
+      applicationsRef.current = updated;
+      setApplications(updated);
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
   const selectedCount = Object.keys(rowSelection).length;
 
   return {
@@ -151,5 +214,6 @@ export function useAppliedViewModel(): UseAppliedViewModel {
     selectedCount,
     updateStage,
     moveSelected,
+    addManual,
   };
 }
