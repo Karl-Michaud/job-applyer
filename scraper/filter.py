@@ -118,7 +118,10 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
             dropped["remote"] += 1; continue
 
         if target_locations:
-            matches_location = any(loc.lower() in location_lower for loc in target_locations)
+            matches_location = any(
+                re.search(r"\b" + re.escape(loc.lower()) + r"\b", location_lower)
+                for loc in target_locations
+            )
             remote_allowed = any("remote" in loc.lower() for loc in target_locations)
             if not matches_location and not (is_remote and remote_allowed):
                 dropped["location"] += 1; continue
