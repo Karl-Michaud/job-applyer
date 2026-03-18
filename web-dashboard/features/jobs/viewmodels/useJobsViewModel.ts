@@ -8,6 +8,7 @@ import { Job, JobAction } from "@/features/jobs/models/types";
 export interface ScraperConfig {
   scrapers: string[];
   applyFilters: boolean;
+  remotePreference: "any" | "remote_only" | "no_remote";
 }
 
 export const ALL_SCRAPERS = ["greenhouse", "lever", "ashby", "simplify"] as const;

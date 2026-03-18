@@ -27,6 +27,7 @@ export function JobsView() {
   const [config, setConfig] = useState<ScraperConfig>({
     scrapers: [...ALL_SCRAPERS],
     applyFilters: true,
+    remotePreference: "any",
   });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -104,7 +105,7 @@ export function JobsView() {
                     </label>
                   ))}
                 </div>
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-2">
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-2 flex flex-col gap-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -114,6 +115,29 @@ export function JobsView() {
                     />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">Apply filters</span>
                   </label>
+                  {config.applyFilters && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500">Remote</p>
+                      <div className="flex gap-1 p-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
+                        {(["any", "remote_only", "no_remote"] as const).map((opt) => {
+                          const labels = { any: "Any", remote_only: "Only", no_remote: "None" };
+                          return (
+                            <button
+                              key={opt}
+                              onClick={() => setConfig((prev) => ({ ...prev, remotePreference: opt }))}
+                              className={`flex-1 text-xs px-2 py-0.5 rounded transition-colors ${
+                                config.remotePreference === opt
+                                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                              }`}
+                            >
+                              {labels[opt]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

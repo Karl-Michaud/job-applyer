@@ -12,9 +12,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const scrapers: string[] = body.scrapers ?? ALL_SCRAPERS;
   const applyFilters: boolean = body.applyFilters ?? true;
+  const remotePreference: string = body.remotePreference ?? "any";
 
   const args = ["--scrapers", ...scrapers];
   if (!applyFilters) args.push("--no-filter");
+  if (remotePreference !== "any") args.push("--remote-preference", remotePreference);
 
   const cmd = `python3 main.py ${args.join(" ")}`;
 

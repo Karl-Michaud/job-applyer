@@ -71,10 +71,35 @@ def _parse_apply_url(td) -> str | None:
 
 
 def _parse_age(td) -> datetime | None:
-    m = re.match(r"(\d+)d", _cell_text(td).strip())
-    if not m:
-        return None
-    return datetime.now(tz=timezone.utc) - timedelta(days=int(m.group(1)))
+    text = _cell_text(td).strip()
+
+    # "7d" — relative days
+    m = re.match(r"^(\d+)d$", text)
+    if m:
+        return datetime.now(tz=timezone.utc) - timedelta(days=int(m.group(1)))
+
+    # "Oct 31", "Nov 1" — month-day without year; assume current or previous year
+    m = re.match(r"^([A-Za-z]{3})\s+(\d{1,2})$", text)
+    if m:
+        current_year = datetime.now(tz=timezone.utc).year
+        try:
+            dt = datetime.strptime(f"{m.group(1)} {m.group(2)} {current_year}", "%b %d %Y")
+            dt = dt.replace(tzinfo=timezone.utc)
+            if dt > datetime.now(tz=timezone.utc):
+                dt = dt.replace(year=current_year - 1)
+            return dt
+        except ValueError:
+            pass
+
+    # "2025-10-31" — ISO date
+    m = re.match(r"^(\d{4}-\d{2}-\d{2})$", text)
+    if m:
+        try:
+            return datetime.fromisoformat(m.group(1)).replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+
+    return None
 
 
 def _parse_table(html: str) -> list[ScrapedJob]:

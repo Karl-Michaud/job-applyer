@@ -33,10 +33,13 @@ def main():
                         help="Which scrapers to run (default: all)")
     parser.add_argument("--no-filter", action="store_true",
                         help="Skip preference/keyword filtering and insert all scraped jobs")
+    parser.add_argument("--remote-preference", choices=["any", "remote_only", "no_remote"], default=None,
+                        help="Override remote_preference for this run")
     args = parser.parse_args()
 
     enabled = set(args.scrapers)
     apply_filters = not args.no_filter
+    remote_preference_override = args.remote_preference
 
     supabase = create_client(
         os.environ["SUPABASE_URL"],
@@ -46,6 +49,9 @@ def main():
     global prefs, blacklisted_companies
     prefs = load_preferences(supabase)
     blacklisted_companies = load_blacklisted_companies(supabase)
+
+    if remote_preference_override:
+        prefs["remote_preference"] = remote_preference_override
 
     if apply_filters:
         print("[filter] Filters ON")
