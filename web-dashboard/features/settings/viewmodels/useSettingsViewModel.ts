@@ -13,6 +13,7 @@ const DEFAULT_PREFS: Preferences = {
   blacklisted_companies: [],
   daily_goal: 5,
   max_age_weeks: 4,
+  remote_preference: "any",
 };
 
 interface UseSettingsViewModel {

@@ -65,6 +65,7 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
     blacklisted_keywords: list[str] = prefs.get("blacklisted_keywords") or []
     pref_blacklisted_companies: list[str] = [c.lower() for c in (prefs.get("blacklisted_companies") or [])]
     max_age_weeks: int = int(prefs.get("max_age_weeks") or 0)
+    remote_preference: str = prefs.get("remote_preference") or "any"
 
     all_blacklisted = blacklisted_companies | set(pref_blacklisted_companies)
     cutoff = (
@@ -74,7 +75,7 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
 
     before = len(jobs)
     filtered = []
-    dropped = {"blacklisted_company": 0, "too_old": 0, "job_type": 0, "must_have": 0, "blacklisted_kw": 0, "target_roles": 0, "location": 0}
+    dropped = {"blacklisted_company": 0, "too_old": 0, "job_type": 0, "must_have": 0, "blacklisted_kw": 0, "target_roles": 0, "location": 0, "remote": 0}
 
     for job in jobs:
         title_lower = job.title.lower()
@@ -108,10 +109,16 @@ def apply(jobs: list[ScrapedJob], prefs: dict, blacklisted_companies: set[str]) 
         if target_roles and not any(_title_matches_role(title_lower, role) for role in target_roles):
             dropped["target_roles"] += 1; continue
 
+        is_remote = (job.location_type or "").lower() == "remote"
+        if remote_preference == "remote_only" and not is_remote:
+            dropped["remote"] += 1; continue
+        if remote_preference == "no_remote" and is_remote:
+            dropped["remote"] += 1; continue
+
         if target_locations:
-            is_remote = "remote" in location_lower or (job.location_type or "").lower() == "remote"
             matches_location = any(loc.lower() in location_lower for loc in target_locations)
-            if not is_remote and not matches_location:
+            remote_allowed = any("remote" in loc.lower() for loc in target_locations)
+            if not matches_location and not (is_remote and remote_allowed):
                 dropped["location"] += 1; continue
 
         filtered.append(job)

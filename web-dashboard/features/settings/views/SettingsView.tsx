@@ -115,6 +115,27 @@ export function SettingsView() {
               placeholder="e.g. Toronto, Remote..."
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Remote Filter</Label>
+            <div className="flex gap-1 p-1 rounded-md bg-zinc-100 dark:bg-zinc-800 w-fit">
+              {(["any", "remote_only", "no_remote"] as const).map((opt) => {
+                const labels = { any: "Any", remote_only: "Remote only", no_remote: "No remote" };
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => updatePref("remote_preference", opt)}
+                    className={`text-xs px-3 py-1 rounded font-medium transition-colors ${
+                      prefs.remote_preference === opt
+                        ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    }`}
+                  >
+                    {labels[opt]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </Section>
 

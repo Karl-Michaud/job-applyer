@@ -7,6 +7,7 @@ export interface Preferences {
   blacklisted_companies: string[];
   daily_goal: number;
   max_age_weeks: number;
+  remote_preference: "any" | "remote_only" | "no_remote";
 }
 
 export interface Company {
