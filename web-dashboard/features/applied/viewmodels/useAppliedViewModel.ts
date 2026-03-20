@@ -22,7 +22,7 @@ interface UseAppliedViewModel {
   selectedCount: number;
   updateStage: (applicationId: string, jobId: string, stage: ApplicationStage) => Promise<void>;
   moveSelected: (destination: MoveBackDestination) => Promise<void>;
-  addManual: (data: { company: string; title: string; url: string; appliedAt: string }) => Promise<void>;
+  addManual: (data: { company: string; title: string; url: string; appliedAt: string; locationType: "remote" | "onsite" | null; location: string; term: string; duration: string }) => Promise<void>;
 }
 
 export function useAppliedViewModel(): UseAppliedViewModel {
@@ -142,7 +142,7 @@ export function useAppliedViewModel(): UseAppliedViewModel {
   );
 
   const addManual = useCallback(
-    async ({ company, title, url, appliedAt }: { company: string; title: string; url: string; appliedAt: string }) => {
+    async ({ company, title, url, appliedAt, locationType, location, term, duration }: { company: string; title: string; url: string; appliedAt: string; locationType: "remote" | "onsite" | null; location: string; term: string; duration: string }) => {
       // Upsert company
       const { data: existingCompany } = await supabase
         .from("companies")
@@ -173,6 +173,10 @@ export function useAppliedViewModel(): UseAppliedViewModel {
           company_id: companyId,
           status: "applied",
           job_type: "internship",
+          ...(locationType && { location_type: locationType }),
+          ...(location && { location }),
+          ...(term && { term }),
+          ...(duration && { duration }),
         })
         .select("id, title, source_url, location, location_type, job_type, term, duration, description, description_text, posted_at, closing_at, deadline_type, salary_min, salary_max, tags, status, rank, notes, scraped_at, updated_at")
         .single();

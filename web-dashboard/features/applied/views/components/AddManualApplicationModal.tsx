@@ -9,6 +9,10 @@ interface AddManualApplicationModalProps {
     title: string;
     url: string;
     appliedAt: string;
+    locationType: "remote" | "onsite" | null;
+    location: string;
+    term: string;
+    duration: string;
   }) => Promise<void>;
 }
 
@@ -17,6 +21,10 @@ export function AddManualApplicationModal({ onClose, onSubmit }: AddManualApplic
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [appliedAt, setAppliedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [locationType, setLocationType] = useState<"remote" | "onsite" | null>(null);
+  const [location, setLocation] = useState("");
+  const [term, setTerm] = useState("");
+  const [duration, setDuration] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +44,16 @@ export function AddManualApplicationModal({ onClose, onSubmit }: AddManualApplic
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit({ company: company.trim(), title: title.trim(), url: url.trim(), appliedAt });
+      await onSubmit({
+        company: company.trim(),
+        title: title.trim(),
+        url: url.trim(),
+        appliedAt,
+        locationType,
+        location: locationType === "onsite" ? location.trim() : "",
+        term: term.trim(),
+        duration: duration.trim(),
+      });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -95,6 +112,66 @@ export function AddManualApplicationModal({ onClose, onSubmit }: AddManualApplic
               placeholder="https://..."
               className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Location</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLocationType(locationType === "remote" ? null : "remote")}
+                className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                  locationType === "remote"
+                    ? "border-zinc-800 dark:border-zinc-200 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                    : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                }`}
+              >
+                Remote
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLocationType(locationType === "onsite" ? null : "onsite"); }}
+                className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                  locationType === "onsite"
+                    ? "border-zinc-800 dark:border-zinc-200 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                    : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                }`}
+              >
+                On-site
+              </button>
+            </div>
+            {locationType === "onsite" && (
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Toronto, ON"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              />
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Period</label>
+              <input
+                type="text"
+                value={term}
+                onChange={(e) => setTerm(e.target.value)}
+                placeholder="e.g. Summer 2026"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 flex-1">
+              <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Length</label>
+              <input
+                type="text"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="e.g. 4 months"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
